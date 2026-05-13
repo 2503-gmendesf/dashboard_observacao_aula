@@ -1,0 +1,9 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/dashboard_observacao_aulav2.html"
+    }
+  ]
+}
