@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Observação de Sala de Aula · Betim</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+:root {
+  --bg:#f2f2f0; --surface:#fff; --border:#e4e4e0; --border2:#d0d0cc;
+  --text:#1a1a18; --muted:#6b6b65; --hint:#a0a09a;
+  --hbg:#111110; --htext:#fff;
+  --red:#c0392b; --blue:#2563eb; --amber:#b45309; --green:#15803d;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+
+/* header */
+.top-header{background:var(--hbg);color:var(--htext);padding:20px 32px 18px;display:flex;align-items:flex-end;justify-content:space-between}
+.top-header h1{font-size:22px;font-weight:700;letter-spacing:-.3px;line-height:1;margin-bottom:6px}
+.top-header .sub{font-size:13px;color:rgba(255,255,255,.45)}
+.header-right{display:flex;align-items:center;gap:16px}
+.file-meta{font-size:13px;color:rgba(255,255,255,.45)}
+.btn-import{display:flex;align-items:center;gap:8px;padding:9px 18px;background:transparent;border:1px solid rgba(255,255,255,.25);border-radius:8px;color:var(--htext);font-size:13px;font-weight:500;font-family:'Inter',sans-serif;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn-import:hover{border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.06)}
+#file-input{display:none}
+
+/* filter bar */
+.filter-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 32px;display:flex;align-items:flex-start;gap:0;flex-wrap:wrap;row-gap:8px}
+.fg{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-right:20px;margin-right:20px;border-right:1px solid var(--border2)}
+.fg:last-of-type{border-right:none}
+.fl{font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap;margin-right:2px}
+
+/* pills */
+.pill{padding:4px 13px;border-radius:20px;border:1px solid var(--border2);background:transparent;font-size:12px;font-weight:500;font-family:'Inter',sans-serif;cursor:pointer;color:var(--muted);transition:all .12s;white-space:nowrap}
+.pill:hover{border-color:var(--text);color:var(--text)}
+.pill.active{background:var(--hbg);border-color:var(--hbg);color:#fff}
+
+/* select professor */
+.fselect{padding:4px 12px;border-radius:20px;border:1px solid var(--border2);background:transparent;font-size:12px;font-weight:500;font-family:'Inter',sans-serif;cursor:pointer;color:var(--muted);outline:none;transition:all .12s;height:28px}
+.fselect:focus,.fselect.active{border-color:var(--hbg);color:var(--text)}
+.fselect.active{background:var(--hbg);color:#fff}
+
+/* turma multiselect */
+.turma-wrapper{position:relative}
+.turma-trigger{padding:4px 13px;border-radius:20px;border:1px solid var(--border2);background:transparent;font-size:12px;font-weight:500;font-family:'Inter',sans-serif;cursor:pointer;color:var(--muted);transition:all .12s;white-space:nowrap;user-select:none}
+.turma-trigger:hover{border-color:var(--text);color:var(--text)}
+.turma-trigger.active{background:var(--hbg);border-color:var(--hbg);color:#fff}
+.turma-dropdown{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:300;background:var(--surface);border:1px solid var(--border2);border-radius:10px;min-width:200px;max-height:280px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.turma-dropdown.open{display:block}
+.turma-search{width:100%;padding:8px 12px;border:none;border-bottom:1px solid var(--border);font-size:12px;font-family:'Inter',sans-serif;outline:none;background:var(--surface);color:var(--text)}
+.turma-item{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;font-size:12px;color:var(--text);transition:background .1s}
+.turma-item:hover{background:var(--bg)}
+.turma-item input[type=checkbox]{accent-color:var(--hbg);cursor:pointer}
+.turma-actions{display:flex;gap:6px;padding:8px 12px;border-top:1px solid var(--border)}
+.turma-act-btn{flex:1;padding:5px 0;border:1px solid var(--border2);border-radius:6px;background:transparent;font-size:11px;font-family:'Inter',sans-serif;cursor:pointer;color:var(--muted)}
+.turma-act-btn:hover{background:var(--bg)}
+
+/* date range */
+.date-pair{display:flex;align-items:center;gap:6px}
+.date-pair input[type=date]{padding:4px 10px;border:1px solid var(--border2);border-radius:20px;font-size:12px;font-family:'Inter',sans-serif;color:var(--text);background:transparent;cursor:pointer;outline:none;height:28px;transition:all .12s}
+.date-pair input[type=date]:focus{border-color:var(--hbg)}
+.date-pair input[type=date].active{background:var(--hbg);color:#fff;border-color:var(--hbg);color-scheme:dark}
+.date-sep{font-size:11px;color:var(--hint)}
+
+.clear-btn{margin-left:auto;font-size:13px;color:var(--muted);background:none;border:none;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:4px;padding:4px 0;align-self:center}
+.clear-btn:hover{color:var(--text)}
+
+/* main */
+main{padding:24px 32px;max-width:1400px;margin:0 auto}
+
+/* metrics */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px 14px;border-top-width:3px}
+.metric.red{border-top-color:var(--red)}.metric.blue{border-top-color:var(--blue)}
+.metric.amber{border-top-color:var(--amber)}.metric.green{border-top-color:var(--green)}
+.metric-value{font-size:36px;font-weight:700;letter-spacing:-1px;line-height:1;margin-bottom:6px}
+.metric-label{font-size:13px;color:var(--muted);margin-bottom:2px}
+.metric-sub{font-size:12px;color:var(--hint)}
+
+/* chart grid */
+.crow{display:grid;gap:16px;margin-bottom:16px}
+.crow.two{grid-template-columns:1fr 1fr}
+.crow.three{grid-template-columns:1fr 1fr 1fr}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 22px}
+.card-title{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--hint);margin-bottom:16px}
+.chart-wrap{position:relative;width:100%}
+
+/* prof table */
+.ptable{width:100%;border-collapse:collapse}
+.ptable th{text-align:left;font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.06em;padding:0 10px 10px;border-bottom:1px solid var(--border)}
+.ptable td{padding:9px 10px;font-size:13px;border-bottom:1px solid var(--border);color:var(--text)}
+.ptable tr:last-child td{border-bottom:none}
+.ptable tr:hover td{background:var(--bg)}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:22px;padding:0 6px;border-radius:20px;font-size:11px;font-weight:700}
+.b0{background:#fdeaea;color:#a51f1f}.b1{background:#fef3e2;color:#92470a}
+.b2{background:#e6f3ec;color:#0a6640}.b3{background:#eef2fc;color:#1847c2}
+
+/* resp bars */
+.rbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.rbar-label{font-size:12px;width:80px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rbar-track{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.rbar-fill{height:100%;background:#2563eb;border-radius:3px}
+.rbar-val{font-size:12px;font-weight:600;color:var(--muted);min-width:20px;text-align:right}
+
+/* upload */
+.upload-zone{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 40px;border:2px dashed var(--border2);border-radius:14px;background:var(--surface);text-align:center;cursor:pointer;transition:all .15s}
+.upload-zone:hover{border-color:#555;background:#fafaf8}
+.upload-zone svg{margin-bottom:16px;opacity:.35}
+.upload-title{font-size:17px;font-weight:600;margin-bottom:6px}
+.upload-sub{font-size:13px;color:var(--hint);line-height:1.6}
+
+@media(max-width:900px){
+  .metrics{grid-template-columns:1fr 1fr}
+  .crow.two,.crow.three{grid-template-columns:1fr}
+  main,.filter-bar,.top-header{padding-left:16px;padding-right:16px}
+}
+</style>
+</head>
+<body>
+
+<div class="top-header">
+  <div>
+    <h1>Observação de Sala de Aula</h1>
+    <div class="sub" id="header-sub">Nenhum arquivo carregado</div>
+  </div>
+  <div class="header-right">
+    <span class="file-meta" id="file-meta"></span>
+    <button class="btn-import" onclick="document.getElementById('file-input').click()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Importar planilha
+    </button>
+    <input type="file" id="file-input" accept=".xlsx,.xls,.csv" onchange="importar(event)">
+  </div>
+</div>
+
+<div class="filter-bar" id="filter-bar" style="display:none">
+
+  <div class="fg">
+    <span class="fl">Responsável</span>
+    <div id="pills-resp"></div>
+  </div>
+
+  <div class="fg">
+    <span class="fl">Professor</span>
+    <select class="fselect" id="sel-prof" onchange="onProfChange()">
+      <option value="">Todos</option>
+    </select>
+  </div>
+
+  <div class="fg">
+    <span class="fl">Turma</span>
+    <div class="turma-wrapper" id="turma-wrapper">
+      <div class="turma-trigger" id="turma-trigger" onclick="toggleTurmaDropdown()">Todas as turmas ▾</div>
+      <div class="turma-dropdown" id="turma-dropdown">
+        <input class="turma-search" type="text" placeholder="Buscar turma..." oninput="filterTurmaList(this.value)">
+        <div id="turma-items"></div>
+        <div class="turma-actions">
+          <button class="turma-act-btn" onclick="selectAllTurmas()">Selecionar todas</button>
+          <button class="turma-act-btn" onclick="clearTurmas()">Limpar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fg">
+    <span class="fl">Turno</span>
+    <div id="pills-turno"></div>
+  </div>
+
+  <div class="fg">
+    <span class="fl">Período rápido</span>
+    <div id="pills-periodo"></div>
+  </div>
+
+  <div class="fg" style="border-right:none">
+    <span class="fl">De / Até</span>
+    <div class="date-pair">
+      <input type="date" id="date-from" onchange="onDateChange()">
+      <span class="date-sep">→</span>
+      <input type="date" id="date-to" onchange="onDateChange()">
+    </div>
+  </div>
+
+  <button class="clear-btn" onclick="limparFiltros()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    Limpar filtros
+  </button>
+</div>
+
+<main id="main-content">
+  <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+    <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+    <div class="upload-title">Importar planilha de observações</div>
+    <div class="upload-sub">Clique para selecionar o arquivo .xlsx exportado do Google Sheets ou gerado aqui<br>
+    Colunas esperadas: <strong>Data, Horário, Responsável pela Observação, Professor(a), Turma</strong> + os 9 critérios</div>
+  </div>
+</main>
+
+<script>
+// ── Mapeamento exato das colunas da planilha ──────────────────────────────────
+const CRITERIOS = [
+  { norm:'gestao_de_sala_de_aula',          label:'Gestão de sala' },
+  { norm:'ambiente_de_aprendizagem',        label:'Amb. aprendizagem' },
+  { norm:'dinamica_na_sala_de_aula',        label:'Dinâmica' },
+  { norm:'integracao_de_recursos',          label:'Recursos' },
+  { norm:'construcao_de_competencias',      label:'Competências' },
+  { norm:'atuacao_do_professor',            label:'Atuação' },
+  { norm:'disciplina',                      label:'Disciplina' },
+  { norm:'metodologias_ativas',             label:'Metodologias' },
+  { norm:'avaliacao_de_aprendizagem',       label:'Avaliação' },
+];
+
+const TURNOS_MAP = {'07h00':'Manhã','07h30':'Manhã','08h00':'Manhã','08h30':'Manhã','09h00':'Manhã','09h30':'Manhã','10h00':'Manhã','10h30':'Manhã','11h00':'Manhã','13h00':'Tarde','13h30':'Tarde','14h00':'Tarde','14h30':'Tarde','15h00':'Tarde','15h30':'Tarde','16h00':'Tarde','16h30':'Tarde','17h00':'Tarde'};
+const PERIODOS = [{label:'Todos',days:0},{label:'30 dias',days:30},{label:'90 dias',days:90}];
+
+let allData = [];
+let filters = { resp:'Todos', prof:'', turmas:new Set(), turno:'Todos', periodo:0, dateFrom:'', dateTo:'' };
+let charts = {};
+let allTurmas = [];
+
+// ── Normalização ──────────────────────────────────────────────────────────────
+function norm(k) {
+  return String(k).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+}
+
+// ── Accessors — usa os nomes normalizados exatos ──────────────────────────────
+const getResp  = r => String(r['responsavel_pela_observacao'] || r['responsavel'] || '');
+const getProf  = r => String(r['professor_a'] || r['professor'] || r['professora'] || '');
+const getTurma = r => String(r['turma'] || '');
+const getHora  = r => String(r['horario'] || r['hora'] || '');
+const getDataR = r => r['data'] || r['data_da_observacao'] || '';
+const getTurno = r => { const h=getHora(r); return TURNOS_MAP[h]||(parseInt(h)<12?'Manhã':'Tarde'); };
+const getCrVal = (r,norm_id) => { const v=parseFloat(r[norm_id]); return isNaN(v)?null:Math.min(3,Math.max(0,v)); };
+
+function getMedia(row) {
+  let s=0,n=0;
+  CRITERIOS.forEach(c=>{ const v=getCrVal(row,c.norm); if(v!==null){s+=v;n++;} });
+  return n?s/n:null;
+}
+
+function parseDate(val) {
+  if (!val) return null;
+  if (val instanceof Date) return isNaN(val)?null:val;
+  const s = String(val);
+  let m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (m) return new Date(`${m[3]}-${m[2]}-${m[1]}`);
+  m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (m) return new Date(m[1]);
+  const d=new Date(s); return isNaN(d)?null:d;
+}
+
+// ── Import ────────────────────────────────────────────────────────────────────
+function importar(e) {
+  const file = e.target.files[0]; if(!file)return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const wb = XLSX.read(ev.target.result,{type:'array',cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws,{defval:''});
+      processRows(rows, file.name);
+    } catch(err){ alert('Erro: '+err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value='';
+}
+
+function processRows(rows, filename) {
+  allData = rows.map(row => {
+    const o={};
+    Object.keys(row).forEach(k => { o[norm(k)] = row[k]; });
+    return o;
+  }).filter(r => Object.values(r).some(v=>v!==''));
+
+  const n=allData.length, cols=Object.keys(allData[0]||{}).length;
+  document.getElementById('header-sub').textContent = 'Betim · '+filename;
+  document.getElementById('file-meta').textContent  = n+' registros · '+cols+' colunas';
+  document.getElementById('filter-bar').style.display='flex';
+
+  allTurmas = [...new Set(allData.map(getTurma).filter(Boolean))].sort();
+  filters.turmas = new Set(); // todas = sem filtro ativo
+
+  buildFilters();
+  renderDash();
+}
+
+// ── Filtros ───────────────────────────────────────────────────────────────────
+function buildFilters() {
+  const resps  = ['Todos',...new Set(allData.map(getResp).filter(Boolean))].sort((a,b)=>a==='Todos'?-1:b==='Todos'?1:a.localeCompare(b));
+  const turnos = ['Todos',...new Set(allData.map(getTurno).filter(Boolean))].sort((a,b)=>a==='Todos'?-1:1);
+  const profs  = [...new Set(allData.map(getProf).filter(Boolean))].sort();
+
+  renderPills('pills-resp', resps, 'resp');
+  renderPills('pills-turno', turnos, 'turno');
+  renderPeriodPills();
+
+  // select professor
+  const sel = document.getElementById('sel-prof');
+  const cur = sel.value;
+  sel.innerHTML='<option value="">Todos</option>'+profs.map(p=>`<option value="${p}">${p}</option>`).join('');
+  sel.value = filters.prof;
+  sel.className='fselect'+(filters.prof?' active':'');
+
+  // turma dropdown
+  buildTurmaItems('');
+
+  // datas
+  const datas = allData.map(r=>parseDate(getDataR(r))).filter(Boolean).sort((a,b)=>a-b);
+  if(datas.length){
+    const fmt=d=>d.toISOString().split('T')[0];
+    ['date-from','date-to'].forEach(id=>{ document.getElementById(id).min=fmt(datas[0]); document.getElementById(id).max=fmt(datas[datas.length-1]); });
+  }
+  document.getElementById('date-from').value=filters.dateFrom;
+  document.getElementById('date-to').value=filters.dateTo;
+  updateDateStyle();
+  updateTurmaTrigger();
+}
+
+function renderPills(id, options, key) {
+  const cont=document.getElementById(id); cont.innerHTML='';
+  options.forEach(opt=>{
+    const b=document.createElement('button');
+    b.className='pill'+(filters[key]===opt?' active':'');
+    b.textContent=opt;
+    b.onclick=()=>{ filters[key]=opt; renderPills(id,options,key); renderDash(); };
+    cont.appendChild(b);
+  });
+}
+
+function renderPeriodPills() {
+  const cont=document.getElementById('pills-periodo'); cont.innerHTML='';
+  PERIODOS.forEach(p=>{
+    const b=document.createElement('button');
+    const isActive=filters.periodo===p.days&&!filters.dateFrom&&!filters.dateTo;
+    b.className='pill'+(isActive?' active':'');
+    b.textContent=p.label;
+    b.onclick=()=>{
+      filters.periodo=p.days; filters.dateFrom=''; filters.dateTo='';
+      document.getElementById('date-from').value='';
+      document.getElementById('date-to').value='';
+      updateDateStyle(); renderPeriodPills(); renderDash();
+    };
+    cont.appendChild(b);
+  });
+}
+
+function onProfChange() {
+  filters.prof=document.getElementById('sel-prof').value;
+  document.getElementById('sel-prof').className='fselect'+(filters.prof?' active':'');
+  renderDash();
+}
+
+function onDateChange() {
+  filters.dateFrom=document.getElementById('date-from').value;
+  filters.dateTo=document.getElementById('date-to').value;
+  if(filters.dateFrom||filters.dateTo){ filters.periodo=0; renderPeriodPills(); }
+  updateDateStyle(); renderDash();
+}
+
+function updateDateStyle() {
+  document.getElementById('date-from').className=filters.dateFrom?'active':'';
+  document.getElementById('date-to').className=filters.dateTo?'active':'';
+}
+
+// ── Turma multiselect ─────────────────────────────────────────────────────────
+function buildTurmaItems(search) {
+  const cont=document.getElementById('turma-items'); cont.innerHTML='';
+  const lista=search?allTurmas.filter(t=>t.toLowerCase().includes(search.toLowerCase())):allTurmas;
+  lista.forEach(t=>{
+    const div=document.createElement('div'); div.className='turma-item';
+    const cb=document.createElement('input'); cb.type='checkbox';
+    cb.checked=filters.turmas.has(t);
+    cb.onchange=()=>{ if(cb.checked)filters.turmas.add(t); else filters.turmas.delete(t); updateTurmaTrigger(); renderDash(); };
+    const lbl=document.createElement('span'); lbl.textContent=t;
+    div.appendChild(cb); div.appendChild(lbl);
+    div.onclick=e=>{ if(e.target!==cb){cb.checked=!cb.checked;cb.onchange();} };
+    cont.appendChild(div);
+  });
+}
+
+function filterTurmaList(v){ buildTurmaItems(v); }
+
+function toggleTurmaDropdown() {
+  const dd=document.getElementById('turma-dropdown');
+  dd.classList.toggle('open');
+  if(dd.classList.contains('open')) document.getElementById('turma-items').previousElementSibling.focus();
+}
+
+function selectAllTurmas() { allTurmas.forEach(t=>filters.turmas.add(t)); buildTurmaItems(''); updateTurmaTrigger(); renderDash(); }
+function clearTurmas()     { filters.turmas.clear(); buildTurmaItems(''); updateTurmaTrigger(); renderDash(); }
+
+function updateTurmaTrigger() {
+  const t=document.getElementById('turma-trigger');
+  const n=filters.turmas.size;
+  t.textContent=n===0?'Todas as turmas':n===1?[...filters.turmas][0]:n+' turmas ▾';
+  if(n>0&&t.textContent.slice(-1)!=='▾') t.textContent+=' ▾';
+  t.className='turma-trigger'+(n>0?' active':'');
+}
+
+// Fechar dropdown clicando fora
+document.addEventListener('click',e=>{
+  const w=document.getElementById('turma-wrapper');
+  if(w&&!w.contains(e.target)) document.getElementById('turma-dropdown').classList.remove('open');
+});
+
+function limparFiltros() {
+  filters={resp:'Todos',prof:'',turmas:new Set(),turno:'Todos',periodo:0,dateFrom:'',dateTo:''};
+  buildFilters(); renderDash();
+}
+
+// ── Filtragem ─────────────────────────────────────────────────────────────────
+function filteredData() {
+  let data=[...allData];
+  if(filters.resp!=='Todos')        data=data.filter(r=>getResp(r)===filters.resp);
+  if(filters.prof)                  data=data.filter(r=>getProf(r)===filters.prof);
+  if(filters.turmas.size>0)         data=data.filter(r=>filters.turmas.has(getTurma(r)));
+  if(filters.turno!=='Todos')       data=data.filter(r=>getTurno(r)===filters.turno);
+  if(filters.periodo>0&&!filters.dateFrom&&!filters.dateTo){
+    const cut=new Date(); cut.setDate(cut.getDate()-filters.periodo);
+    data=data.filter(r=>{ const d=parseDate(getDataR(r)); return d&&d>=cut; });
+  }
+  if(filters.dateFrom){ const f=new Date(filters.dateFrom); data=data.filter(r=>{ const d=parseDate(getDataR(r)); return d&&d>=f; }); }
+  if(filters.dateTo)  { const t=new Date(filters.dateTo); t.setHours(23,59,59); data=data.filter(r=>{ const d=parseDate(getDataR(r)); return d&&d<=t; }); }
+  return data;
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderDash() {
+  const data=filteredData();
+  document.getElementById('main-content').innerHTML=buildHTML();
+  renderMetrics(data);
+  renderCriterio(data);
+  renderEvolucao(data);
+  renderTurno(data);
+  renderNivel(data);
+  renderRespBars(data);
+  renderProfTable(data);
+}
+
+function buildHTML(){
+  return `
+  <div class="metrics" id="metrics-row"></div>
+  <div class="crow two">
+    <div class="card">
+      <div class="card-title">Média por critério pedagógico</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="chart-crit" role="img" aria-label="Média por critério">Médias por critério.</canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Evolução temporal</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="chart-evol" role="img" aria-label="Evolução temporal">Evolução ao longo do tempo.</canvas></div>
+    </div>
+  </div>
+  <div class="crow three">
+    <div class="card">
+      <div class="card-title">Turno</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="chart-turno" role="img" aria-label="Turno">Distribuição por turno.</canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Observações por responsável</div>
+      <div id="resp-bars" style="padding-top:4px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Distribuição por nível</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="chart-nivel" role="img" aria-label="Distribuição por nível">Distribuição dos níveis.</canvas></div>
+    </div>
+  </div>
+  <div class="crow" style="grid-template-columns:1fr">
+    <div class="card" style="overflow-x:auto">
+      <div class="card-title">Desempenho por professor</div>
+      <table class="ptable">
+        <thead><tr>
+          <th>Professor(a)</th><th>Obs.</th>
+          ${CRITERIOS.map(c=>`<th>${c.label}</th>`).join('')}
+          <th>Média geral</th>
+        </tr></thead>
+        <tbody id="prof-tbody"></tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function corMedia(v){
+  if(v===null)return'#ccc';
+  if(v<1)return'#c0392b'; if(v<2)return'#d97706'; if(v<3)return'#15803d'; return'#2563eb';
+}
+function badgeClass(v){ return v<1?'b0':v<2?'b1':v<3?'b2':'b3'; }
+function destroyChart(id){ if(charts[id]){charts[id].destroy();delete charts[id];} }
+
+function renderMetrics(data){
+  const n=data.length;
+  let s=0,cnt=0;
+  data.forEach(r=>CRITERIOS.forEach(c=>{ const v=getCrVal(r,c.norm); if(v!==null){s+=v;cnt++;} }));
+  const media=cnt?(s/cnt).toFixed(2):'—';
+  const pct=allData.length?Math.round(n/allData.length*100):0;
+  const profs=new Set(data.map(getProf).filter(Boolean)).size;
+  const turmas=new Set(data.map(getTurma).filter(Boolean)).size;
+  document.getElementById('metrics-row').innerHTML=`
+    <div class="metric red"><div class="metric-value">${n}</div><div class="metric-label">Total de observações</div><div class="metric-sub">${pct}% do total</div></div>
+    <div class="metric blue"><div class="metric-value">${profs}</div><div class="metric-label">Professores avaliados</div><div class="metric-sub">${turmas} turmas diferentes</div></div>
+    <div class="metric amber"><div class="metric-value">${media}</div><div class="metric-label">Média geral (escala 0–3)</div><div class="metric-sub">${cnt?Math.round(s/cnt/3*100):0}% de aproveitamento</div></div>
+    <div class="metric green"><div class="metric-value">${turmas}</div><div class="metric-label">Turmas observadas</div><div class="metric-sub">de ${allTurmas.length} no total</div></div>`;
+}
+
+function renderCriterio(data){
+  destroyChart('crit');
+  const ctx=document.getElementById('chart-crit')?.getContext('2d'); if(!ctx)return;
+  const medias=CRITERIOS.map(c=>{ let s=0,n=0; data.forEach(r=>{ const v=getCrVal(r,c.norm); if(v!==null){s+=v;n++;} }); return n?parseFloat((s/n).toFixed(2)):null; });
+  charts['crit']=new Chart(ctx,{type:'bar',data:{labels:CRITERIOS.map(c=>c.label),datasets:[{data:medias,backgroundColor:medias.map(corMedia),borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`Média: ${c.parsed.y!==null?c.parsed.y.toFixed(2):'—'} / 3`}}},scales:{y:{min:0,max:3,ticks:{font:{size:11}},grid:{color:'rgba(0,0,0,0.05)'}},x:{ticks:{font:{size:10}}}}}});
+}
+
+function renderEvolucao(data){
+  destroyChart('evol');
+  const ctx=document.getElementById('chart-evol')?.getContext('2d'); if(!ctx)return;
+  const byDate={};
+  data.forEach(r=>{ const d=parseDate(getDataR(r)); if(!d)return; const k=d.toISOString().split('T')[0]; if(!byDate[k])byDate[k]={s:0,n:0}; CRITERIOS.forEach(c=>{ const v=getCrVal(r,c.norm); if(v!==null){byDate[k].s+=v;byDate[k].n++;} }); });
+  const dates=Object.keys(byDate).sort();
+  const vals=dates.map(d=>parseFloat((byDate[d].s/byDate[d].n).toFixed(2)));
+  charts['evol']=new Chart(ctx,{type:'line',data:{labels:dates,datasets:[{data:vals,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.07)',fill:true,tension:0.4,pointRadius:4,pointBackgroundColor:'#2563eb'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`Média: ${c.parsed.y.toFixed(2)} / 3`}}},scales:{y:{min:0,max:3,ticks:{font:{size:11}}},x:{ticks:{font:{size:10},maxRotation:45}}}}});
+}
+
+function renderTurno(data){
+  destroyChart('turno');
+  const ctx=document.getElementById('chart-turno')?.getContext('2d'); if(!ctx)return;
+  const manha=data.filter(r=>getTurno(r)==='Manhã').length;
+  const tarde=data.filter(r=>getTurno(r)==='Tarde').length;
+  charts['turno']=new Chart(ctx,{type:'doughnut',data:{labels:['Manhã','Tarde'],datasets:[{data:[manha,tarde],backgroundColor:['#d97706','#2563eb'],borderWidth:3,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{position:'bottom',labels:{font:{size:12},padding:12,boxWidth:12}}}}});
+}
+
+function renderNivel(data){
+  destroyChart('nivel');
+  const ctx=document.getElementById('chart-nivel')?.getContext('2d'); if(!ctx)return;
+  const counts=[0,0,0,0];
+  data.forEach(r=>CRITERIOS.forEach(c=>{ const v=getCrVal(r,c.norm); if(v!==null)counts[Math.round(v)]++; }));
+  charts['nivel']=new Chart(ctx,{type:'doughnut',data:{labels:['Não obs.','Parcial','Observado','Consistente'],datasets:[{data:counts,backgroundColor:['#c0392b','#d97706','#15803d','#2563eb'],borderWidth:3,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:10,boxWidth:10}}}}});
+}
+
+function renderRespBars(data){
+  const el=document.getElementById('resp-bars'); if(!el)return;
+  const resps=[...new Set(data.map(getResp).filter(Boolean))].sort();
+  if(!resps.length){el.innerHTML='<div style="color:var(--hint);font-size:13px">Sem dados.</div>';return;}
+  const counts=resps.map(r=>data.filter(d=>getResp(d)===r).length);
+  const max=Math.max(...counts);
+  el.innerHTML=resps.map((r,i)=>`
+    <div class="rbar">
+      <div class="rbar-label" title="${r}">${r}</div>
+      <div class="rbar-track"><div class="rbar-fill" style="width:${max?(counts[i]/max*100).toFixed(0):0}%"></div></div>
+      <div class="rbar-val">${counts[i]}</div>
+    </div>`).join('');
+}
+
+function renderProfTable(data){
+  const tbody=document.getElementById('prof-tbody'); if(!tbody)return;
+  const profs=[...new Set(data.map(getProf).filter(Boolean))].sort();
+  tbody.innerHTML=profs.map(p=>{
+    const pr=data.filter(r=>getProf(r)===p);
+    const meds=CRITERIOS.map(c=>{ let s=0,n=0; pr.forEach(r=>{ const v=getCrVal(r,c.norm); if(v!==null){s+=v;n++;} }); return n?s/n:null; });
+    const valid=meds.filter(v=>v!==null);
+    const geral=valid.length?valid.reduce((a,b)=>a+b,0)/valid.length:null;
+    return `<tr>
+      <td style="font-weight:500">${p}</td>
+      <td style="color:var(--hint)">${pr.length}</td>
+      ${meds.map(v=>v!==null?`<td><span class="badge ${badgeClass(v)}">${v.toFixed(1)}</span></td>`:'<td style="color:var(--hint)">—</td>').join('')}
+      <td>${geral!==null?`<span class="badge ${badgeClass(geral)}">${geral.toFixed(2)}</span>`:'—'}</td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="12" style="text-align:center;color:var(--hint);padding:2rem">Sem dados.</td></tr>';
+}
+</script>
+</body>
+</html>
